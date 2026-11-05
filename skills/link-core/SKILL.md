@@ -1,7 +1,7 @@
 ---
 name: link-core
 description: Clone bullet_train-core at the version your app uses and point the Gemfile's bullet_train gems at it for local development. Also unlinks.
-allowed-tools: Bash(git clone:*), Bash(git -C ./local/bullet_train-core:*), Bash(gh --version), Bash(gh repo clone:*), Bash(bundle install:*), Bash(mkdir -p local), Read, Edit, Write, Grep, Glob
+allowed-tools: Bash(gh --version), Bash(gh repo clone bullet-train-co/bullet_train-core ./local/bullet_train-core), Bash(git clone https://github.com/bullet-train-co/bullet_train-core.git ./local/bullet_train-core), Bash(git clone git@github.com:bullet-train-co/bullet_train-core.git ./local/bullet_train-core), Bash(git -C ./local/bullet_train-core remote get-url origin), Bash(git -C ./local/bullet_train-core status --short), Bash(git -C ./local/bullet_train-core branch --show-current), Bash(git -C ./local/bullet_train-core fetch --tags), Bash(git -C ./local/bullet_train-core tag:*), Bash(git -C ./local/bullet_train-core checkout v:*), Bash(bundle install:*), Bash(mkdir -p local), Read, Edit, Write, Grep, Glob
 ---
 
 # Link Bullet Train Core for Local Development
@@ -48,7 +48,7 @@ Prefer `bin/hack` when you want the full interactive workflow, to work on a `mai
 3. **Check out the matching tag.**
    - Core tags are the version prefixed with `v` (for example `v1.45.1`). Confirm with `git -C ./local/bullet_train-core tag --list "v<BULLET_TRAIN_VERSION>"`.
    - If the tag exists: `git -C ./local/bullet_train-core checkout v<BULLET_TRAIN_VERSION>` (this leaves a detached HEAD, which is expected).
-   - If it does not exist, say so (show the newest tags with `git -C ./local/bullet_train-core tag --sort=-v:refname` and read only the first few lines) and ask the user before using `main`. Linking `main` against an app locked to a different version can fail to resolve in `bundle install`.
+   - If it does not exist, say so (show the newest tags with `git -C ./local/bullet_train-core tag --sort=-v:refname` and read only the first few lines) and ask the user before using `main` (`git -C ./local/bullet_train-core checkout main` is not pre-approved, so it prompts, which is intended). Linking `main` against an app locked to a different version can fail to resolve in `bundle install`.
 
 4. **Discover the gems in the clone.**
    - Every top-level folder in `./local/bullet_train-core/` that contains a `*.gemspec` is a gem. In practice the folder name equals the gem name, hyphens included, and the folder holds `<name>.gemspec` (for example `bullet_train-super_scaffolding/bullet_train-super_scaffolding.gemspec`). The folder `bullet_train` is the gem `bullet_train`.
@@ -85,7 +85,7 @@ The starter's `package.json` depends on three published npm packages from core (
 
 To go back to the released gems:
 
-1. In the Gemfile, remove the `, path: "local/bullet_train-core/<folder>"` option from each `bullet_train*` gem line that has it. Leave `BULLET_TRAIN_VERSION` and any other options or comments in place. (`bin/hack --reset` also does this, but it strips every option after the first comma, so use it only if the lines have nothing else on them.)
+1. In the Gemfile, remove the `, path: "local/bullet_train-core/<folder>"` option from each `bullet_train*` gem line that has it. Leave `BULLET_TRAIN_VERSION` and any other options or comments in place. (`bin/hack --reset` also does this, but it strips every option after the first comma, and it deletes any `bullet_train-*` gem lines at the very end of the Gemfile, so use it only if the lines have nothing else on them and none of them sits at the end of the file.)
 2. Run `bundle install` so the lockfile returns to the released sources, then restart `bin/dev` and the Rails server.
 3. Leave `./local/bullet_train-core` in place. Only delete it if the user asks. Leave the `/local` entry in `.gitignore` as well.
 
