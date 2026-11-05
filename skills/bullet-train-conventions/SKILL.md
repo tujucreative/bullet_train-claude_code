@@ -9,14 +9,15 @@ Snapshot of bullet_train / bullet_train-core `v1.45.1`. Most of the framework li
 
 ## Rules that prevent the usual mistakes
 
-1. **Scaffold, do not hand-write CRUD.** Run `rails generate super_scaffold` (or `super_scaffold:field` for new attributes), then `rake db:migrate`. Hand-written models skip the API controller, serializer, locale file, `roles.yml` permissions, breadcrumbs, routes and tests the scaffolder produces.
-2. **Every scaffolded model is owned through `Team`.** The second argument is the chain of parents back to `Team`, for example `Goal Project,Team`. Controllers use `account_load_and_authorize_resource` and the ability comes from `config/models/roles.yml` plus `permit user, through: :memberships, parent: :team` in `app/models/ability.rb`; do not write ad-hoc `can` rules for scaffolded models.
+1. **Scaffold, do not hand-write CRUD.** Run `rails generate super_scaffold` (or `super_scaffold:field` for new attributes), then `rake db:migrate`. Hand-written models skip the API controller and jbuilder views, locale file, `roles.yml` permissions, breadcrumbs, routes and tests the scaffolder produces.
+2. **Every scaffolded model is owned through `Team`.** The second argument is the chain of parents back to `Team`, for example `Goal Project,Team`. Controllers use `account_load_and_authorize_resource` and the ability comes from `config/models/roles.yml` plus `permit user, through: :memberships, parent: :team` in `app/models/ability.rb`; do not write ad-hoc `can` rules for scaffolded models. Tenancy is `Team`, not a URL slug or `Current.account`: account routes nest under `resources :teams` in `namespace :account`, `Current.team` / `current_team` carry the context, and authorization is CanCanCan (`include CanCan::Ability`). Do not add Pundit, and do not load records with `Model.find(params[:id])` in account controllers.
 3. **Assign work to `Membership`, not `User`** (`lead_id:super_select{class_name=Membership}`), and define the `valid_*` method the scaffolder asks for (for example `team.memberships.current_and_invited`). It feeds both the select and the security check.
 4. **Never edit an installed gem.** Find the file with `bin/resolve`, then either redefine the method in the local stub (`class User < ApplicationRecord; include Users::Base; ...`) or copy it into the app with `--eject`. Ejected files stop receiving upstream updates, so prefer the stub. To change core itself, link a clone (see the `link-core` skill) and work there.
 5. **Keep the `# 🚅 ...` magic comments** in models, controllers, views, locales and `ability.rb`. The scaffolder inserts at them; without them later `super_scaffold:field` runs print "We weren't able to find a super scaffolding hook".
 6. **Commit before scaffolding.** Generated runs touch many files; the USAGE text recommends `git checkout .` and `git clean -d -f` to undo.
 7. **`bin/super-scaffold` is deprecated.** It only re-execs `rails generate super_scaffold…`; use the generator directly.
 8. **All `bullet_train*` gems share one version** (`BULLET_TRAIN_VERSION` in the Gemfile). Upgrade one version at a time by merging the starter tag (`git merge v1.4.1` style), then run tests. Version facts and bad releases: see the `bullet-train-versions` skill. Linking core locally: see `link-core`.
+9. **Adding a field to a table that already has rows.** `super_scaffold:field` runs `rails generate migration add_<attr>_to_<table>`; plain columns come out nullable, and a `super_select` reference is rewritten to `null: true` unless the attribute is `{required}`. Do not add `null: false` or a unique index to that migration: migrate it nullable, backfill, then add the constraint in a later migration.
 
 ## Super Scaffolding
 
@@ -40,6 +41,7 @@ Flags are parsed from raw `--name` / `--name=value` arguments at the end of the 
 - `bin/resolve Account::Users::ControllerBase --open` prints the gem path of a class/module; `bin/resolve shared/box` resolves a partial; `bin/resolve en.account.onboarding.user_details.edit.header --eject --open` resolves a translation key. `--eject` copies the file into the app with an "Ejected from" header and refuses if the target exists unless `--force`. `--interactive` accepts a `<!-- BEGIN ... -->` comment pasted from the rendered HTML (view annotation is on in development only, `config/environments/development.rb`).
 - `rake bullet_train:eject[locales]` copies every core locale file into `config/locales`. (`docs/indirection.md` names this `bullet_train:themes[eject]`; that task does not exist.)
 - `?show_locales=true` or `?log_locales=true` on any URL shows the translation keys in use.
+- Bullet Train's own Stimulus controllers come from the `@bullet-train/*` npm packages registered in `app/javascript/controllers/index.js`; to change one, create a controller in `app/javascript/controllers/` that imports and `extends` it (`docs/javascript.md`), never edit `node_modules`.
 
 ## Themes
 
@@ -48,9 +50,9 @@ Flags are parsed from raw `--name` / `--name=value` arguments at the end of the 
 
 ## Starter scripts
 
-- `bin/configure`: one-time, after cloning the starter (renames `origin` to `bullet-train`, renames the app, optional deploy buttons, commits). `bin/setup` installs dependencies and prepares the database; `bin/dev` runs `bin/link` then `Procfile.dev` via overmind or foreman.
+- `bin/configure`: one-time, after cloning the starter (renames `origin` to `bullet-train`, renames the app, optional deploy buttons, commits). `bin/setup` installs dependencies and prepares the database; `bin/dev` runs `bin/link` then `Procfile.dev` via overmind or foreman. Models, controllers, views and `config/models/roles.yml` reload in development. After a migration that adds columns, or a change to `config/application.yml`, initializers or the Gemfile, run `rails restart` (the starter's `config/puma.rb` loads `plugin :tmp_restart`); Gemfile path changes need a full `bin/dev` restart so `bin/link` re-runs.
 - `bin/link` (`rake bt:link`) symlinks gems into `tmp/gems` for Tailwind scanning; `bin/hack` clones and links core (`bin/hack --help`; covered by the `link-core` skill).
-- `bin/ci` runs `config/ci.rb`: `bin/setup --skip-server`, `bin/rubocop`, `bin/importmap audit`, `bin/rails test`, `env RAILS_ENV=test bin/rails db:seed:replant`; system tests are commented out there. It is the Rails default template: the starter ships no `bin/importmap`, so expect that step to fail until the app's own CI config is adjusted.
+- `bin/ci` runs `config/ci.rb`: `bin/setup --skip-server`, `bin/rubocop`, `bin/importmap audit`, `bin/rails test`, `env RAILS_ENV=test bin/rails db:seed:replant`; system tests are commented out there. It is the Rails default template and does not fit the starter yet: there is no `.rubocop.yml` (which `bin/rubocop` passes as `--config`) and no `bin/importmap`, so expect both steps to fail until the app's CI config is adjusted. The starter lints with Standard: `bundle exec standardrb` (`.standard.yml`).
 
 ## API docs
 
@@ -58,7 +60,7 @@ Flags are parsed from raw `--name` / `--name=value` arguments at the end of the 
 
 ## Tests
 
-- `rails test` and `rails test:system` (docs/testing.md); the starter uses Minitest with FactoryBot (`test/factories`) and loads `db/seeds` in `test_helper.rb`. `MAGIC_TEST=1 rails test` shows the browser for Capybara tests.
+- `rails test` and `rails test:system` (docs/testing.md); the starter uses Minitest with FactoryBot (`test/factories`) and loads `db/seeds` in `test_helper.rb`. `MAGIC_TEST=1 rails test` shows the browser for Capybara tests. Test data is FactoryBot, not fixtures (`test/fixtures/` does not exist), plus `db/seeds` loaded by `test_helper.rb`. Do not change the attributes or callbacks of an existing factory or of the test seeds; add a child factory (the starter nests `onboarded_user` under `user`) or a trait. After changing any factory or seed, run the full `bin/rails test`, not only the touched file. The starter runs tests serially (`parallelize` is commented out) and runs Sidekiq jobs inline (`Sidekiq::Testing.inline!`).
 - Super Scaffolding system tests need generated code first: `./test/system/super_scaffolding/<name>/setup.rb`, then `rails test test/system/super_scaffolding/<name>/`, then `./test/system/super_scaffolding/<name>/teardown.rb`, from a clean workspace. (`docs/testing.md` still names `test/bin/setup-super-scaffolding-system-test`, which the starter no longer ships.)
 
 ## Do not guess
@@ -80,4 +82,7 @@ If a generator flag, field option or rake task is not listed above, do not infer
 - `bullet_train-core/bullet_train-themes-light/lib/tasks/bullet_train/themes/light_tasks.rake`; `bullet_train-themes/lib/tasks/application.rb` ("rake bullet_train:themes:light:eject[custom_theme_name_here]"); `bullet_train-themes/lib/tasks/bullet_train/themes_tasks.rake` (`bt:link`)
 - `bullet_train-core/bullet_train-api/lib/tasks/bullet_train/api_tasks.rake`: tasks `bump_version`, `export_openapi_schema`, `generate_static_openapi`, `create_translations`
 - `bullet_train/test/test_helper.rb`, `test/system/super_scaffolding/README.md`, `.github/workflows/_run_super_scaffolding_tests.yml`
-- `bullet_train/app/models/ability.rb`, `config/models/roles.yml`, `app/models/user.rb`; `bullet_train-super_scaffolding/app/controllers/account/scaffolding/completely_concrete/tangible_things_controller.rb` (`account_load_and_authorize_resource`)
+- `bullet_train/app/models/ability.rb` (`include CanCan::Ability`), `config/models/roles.yml`, `app/models/user.rb`, `config/routes.rb` (`namespace :account`, `resources :teams`); `bullet_train-core/bullet_train/app/models/concerns/current_attributes/base.rb` (`attribute :user, :team, :membership`); `bullet_train-super_scaffolding/app/controllers/account/scaffolding/completely_concrete/tangible_things_controller.rb` (`account_load_and_authorize_resource`)
+- Rule 9: `lib/scaffolding/script.rb` line 250 (`bin/rails generate migration add_..._to_...`), `lib/scaffolding/attribute.rb` `is_required?`, `lib/scaffolding/transformer.rb` lines 1150-1153 (`null: false` -> `null: true` unless required)
+- Tests and restart: `bullet_train/test/test_helper.rb` (`Sidekiq::Testing.inline!`, commented `parallelize`, `fixtures :all` with no `test/fixtures/`), `test/factories/users.rb` (`factory :onboarded_user` inside `factory :user`), `config/puma.rb` (`plugin :tmp_restart`), `docs/tunneling.md` ("rails restart"), `bullet_train-roles/lib/bullet_train/roles/engine.rb` (`FileUpdateChecker` on roles.yml)
+- Lint: `bullet_train/bin/rubocop` (`--config ../.rubocop.yml`, file absent), `.standard.yml`, `.github/workflows/_standardrb.yml`; `current_team`: `bullet_train-core/bullet_train/app/controllers/concerns/controllers/base.rb` line 68; Stimulus: `docs/javascript.md` ("export a class that extends the controller that you just imported"), `app/javascript/controllers/index.js`
