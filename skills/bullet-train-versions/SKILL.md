@@ -5,18 +5,22 @@ description: Background reference on Bullet Train starter toolchain versions (Ru
 
 # Bullet Train Versions Reference
 
-Background facts, snapshot taken at bullet_train / bullet_train-core `v1.45.1`. These values drift. Before relying on any of them, read the app's own `.ruby-version`, `.nvmrc`, `Gemfile` (`BULLET_TRAIN_VERSION`) and `package.json`, and treat this skill as context only.
+Background facts, snapshot taken at bullet_train / bullet_train-core `v1.45.1`, as upgraded in the tujucreative forks to Ruby 4.0.9 and Rails 8.1.4.1. These values drift. Before relying on any of them, read the app's own `.ruby-version`, `.nvmrc`, `Gemfile` (`BULLET_TRAIN_VERSION`), `Gemfile.lock` and `package.json`, and treat this skill as context only.
 
 ## Starter baseline (v1.45.1)
 
 | Item | Value | Where to check in your app |
 |---|---|---|
-| Ruby | 4.0.3 | `.ruby-version` (the Gemfile reads it) |
+| Ruby | 4.0.9 | `.ruby-version` (the Gemfile reads it) |
 | Node | 24.15.0 | `.nvmrc` |
-| Rails | `~> 8.1.0` | `Gemfile` |
+| Rails | 8.1.4.1 (constraint `~> 8.1.0`) | `Gemfile`, `Gemfile.lock` |
+| Rails defaults | `load_defaults 8.1` | `config/application.rb` |
+| Bundler | 4.0.20 | `BUNDLED WITH` in `Gemfile.lock` |
 | Devise | `~> 5.0` | `Gemfile` |
 | Tailwind CSS | `^3.4.17` (v3, not v4) | `package.json` |
 | `bullet_train` gems | 1.45.1 | `BULLET_TRAIN_VERSION` in `Gemfile` |
+
+In the tujucreative forks the core gems come from the `tujucreative/bullet_train-core` git source (branch `main`) instead of RubyGems, so every `bullet_train*` gem should resolve to a `bundler/gems/bullet_train-core-<sha>` path. Bundler is 4.0.20 because Bundler 2.4.x can't load git sources on Ruby 4.0.9.
 
 All `bullet_train*` gems and the starter are released in lockstep at the same version number. Core's own `lib/bullet_train/version.rb` (`BulletTrain::VERSION`) matches the starter's `BULLET_TRAIN_VERSION`. (Checked: all 17 gems' `version.rb` files say 1.45.1.)
 
@@ -29,7 +33,8 @@ All `bullet_train*` gems and the starter are released in lockstep at the same ve
 ## Sources
 
 - `bullet_train/.ruby-version`, `bullet_train/.nvmrc`
-- `bullet_train/Gemfile` (Rails, Devise, `BULLET_TRAIN_VERSION`, gem list)
+- `bullet_train/Gemfile` (Rails, Devise, `BULLET_TRAIN_VERSION`, gem list, `tujucreative/bullet_train-core` git source) and `bullet_train/Gemfile.lock` (Rails 8.1.4.1, `BUNDLED WITH 4.0.20`)
+- `bullet_train/config/application.rb` (`load_defaults 8.1`)
 - `bullet_train/package.json` (`tailwindcss`)
 - `bullet_train-core/*/lib/**/version.rb` (all 17 gems, each 1.45.1, for the lockstep claim) and `bullet_train/Gemfile` `BULLET_TRAIN_VERSION`
 - `bullet_train-core/*/*.gemspec` (gem list); `git show c0e1870` in bullet_train-core (Tailwind v4 revert)
